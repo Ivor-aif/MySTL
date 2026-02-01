@@ -7,4 +7,5 @@ set(CMAKE_EXE_LINKER_FLAGS "-static")
 add_executable(MySTL main.cpp
         headers/containers.h
         headers/array.h
+        applications/arrayOnly.cpp
 )
