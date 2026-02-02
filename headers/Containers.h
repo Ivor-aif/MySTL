@@ -132,6 +132,82 @@ public:
     }
 };
 
+template<typename T>
+struct lstNode { // TODO: need an sentinel node in class List, T in sentinel needs to be handled properly
+public:
+    lstNode* last, * next;
+    T value;
+
+private:
+    template<typename> friend struct lstOps;
+
+    template<typename... Args>
+    explicit lstNode(Args&&... args) : last(nullptr), next(nullptr), value(std::forward<Args>(args)...) {
+
+    }
+};
+
+template<typename T>
+struct lstOps {
+    static lstNode<T>* create(const T& value) {
+        void* mem = operator new(sizeof(lstNode<T>));
+        try {
+            return new (mem) lstNode<T>(value);
+        } catch (...) {
+            operator delete(mem);
+            throw;
+        }
+    }
+
+    static void destroy(lstNode<T>* obj) {
+        if (!obj) {
+            return;
+        }
+        obj->value.~T();
+        operator delete(obj);
+    }
+
+    static void link(lstNode<T>* first, lstNode<T>* second) {
+        if (first && second) {
+            first->next = second;
+            second->last = first;
+        }
+    }
+
+    static void unlink(lstNode<T>* node) {
+        lstNode<T>* last = node->last;
+        lstNode<T>* next = node->next;
+        last->next = next;
+        next->last = last;
+        node->last = node->next = nullptr;
+    }
+};
+
+template<typename T>
+class lstIterator {
+private:
+    lstNode<T>* curr;
+    template<typename> friend class List;
+
+public:
+    T& operator*() const { // TODO: prevent null-pointer UB before calling
+        return curr->value;
+    }
+
+    lstIterator& operator++() {
+        curr = curr->next;
+        return *this;
+    }
+
+    bool operator==(const lstIterator& other) const {
+        return curr == other.curr;
+    }
+
+    bool operator!=(const lstIterator& other) const {
+        return curr != other.curr;
+    }
+};
+
 }
 
 #endif // CONTAINERS_H
