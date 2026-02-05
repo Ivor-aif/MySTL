@@ -133,7 +133,7 @@ public:
 };
 
 template<typename T>
-struct lstNode { // TODO: need an sentinel node in class List, T in sentinel needs to be handled properly
+struct lstNode {
 public:
     lstNode* last, * next;
     T value;
@@ -147,24 +147,22 @@ private:
     }
 };
 
-template<typename T>
+template<typename T, typename Alloc = std::allocator<T>>
 struct lstOps {
-    static lstNode<T>* create(const T& value) {
-        void* mem = operator new(sizeof(lstNode<T>));
+    static lstNode<T>* create(typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>& alloc, const T& value) {
+        auto node = std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::allocate(alloc, 1);
         try {
-            return new (mem) lstNode<T>(value);
+            std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::construct(alloc, node, value);
+            return node;
         } catch (...) {
-            operator delete(mem);
+            std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::deallocate(alloc, node, 1);
             throw;
         }
     }
 
-    static void destroy(lstNode<T>* obj) {
-        if (!obj) {
-            return;
-        }
-        obj->value.~T();
-        operator delete(obj);
+    static void destroy(typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>& alloc, lstNode<T>* obj) {
+        std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::destroy(alloc, obj);
+        std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::deallocate(alloc, obj, 1);
     }
 
     static void link(lstNode<T>* first, lstNode<T>* second) {
@@ -175,10 +173,7 @@ struct lstOps {
     }
 
     static void unlink(lstNode<T>* node) {
-        lstNode<T>* last = node->last;
-        lstNode<T>* next = node->next;
-        last->next = next;
-        next->last = last;
+        link(node->last, node->next);
         node->last = node->next = nullptr;
     }
 };
@@ -190,7 +185,11 @@ private:
     template<typename> friend class List;
 
 public:
-    T& operator*() const { // TODO: prevent null-pointer UB before calling
+    lstIterator() : curr(nullptr) {
+
+    }
+
+    T& operator*() const {
         return curr->value;
     }
 
@@ -199,12 +198,87 @@ public:
         return *this;
     }
 
+    lstIterator operator++(int) {
+        lstIterator tmp = *this;
+        ++*this;
+        return tmp;
+    }
+
+    lstIterator& operator--() {
+        curr = curr->last;
+        return *this;
+    }
+
+    lstIterator operator--(int) {
+        lstIterator tmp = *this;
+        --*this;
+        return tmp;
+    }
+
     bool operator==(const lstIterator& other) const {
         return curr == other.curr;
     }
 
     bool operator!=(const lstIterator& other) const {
         return curr != other.curr;
+    }
+
+    T* operator->() const {
+        return &curr->value;
+    }
+};
+
+template<typename T>
+class lstConstIterator {
+private:
+    const lstNode<T>* curr;
+    template<typename> friend class List;
+
+public:
+    lstConstIterator() : curr(nullptr) {
+
+    }
+
+    explicit lstConstIterator(const lstIterator<T>& it) : curr(it.curr) {
+
+    }
+
+    const T& operator*() const {
+        return curr->value;
+    }
+
+    lstConstIterator& operator++() {
+        curr = curr->next;
+        return *this;
+    }
+
+    lstConstIterator operator++(int) {
+        lstConstIterator tmp = *this;
+        ++*this;
+        return tmp;
+    }
+
+    lstConstIterator& operator--() {
+        curr = curr->last;
+        return *this;
+    }
+
+    lstConstIterator operator--(int) {
+        lstIterator tmp = *this;
+        --*this;
+        return tmp;
+    }
+
+    bool operator==(const lstConstIterator& other) const {
+        return curr == other.curr;
+    }
+
+    bool operator!=(const lstConstIterator& other) const {
+        return curr != other.curr;
+    }
+
+    T* operator->() const {
+        return &curr->value;
     }
 };
 

@@ -1,15 +1,11 @@
 #include <iostream>
+#include <list>
 
 #include "headers/Array.h"
 
 using namespace mySTL::containers;
 
 int main() {
-    Array<int> arr = {1, 2, 3};
-    arr.get(1) = 42;
-    std::cout << "Hello!" << std::endl;
-    for (const int& xx : arr) {
-        std::cout << xx << " ";
-    }
+    std::list<int> l1;
     return 0;
 }
