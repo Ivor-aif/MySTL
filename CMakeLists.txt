@@ -9,4 +9,5 @@ add_executable(MySTL main.cpp
         headers/array.h
         applications/arrayOnly.cpp
         headers/List.h
+        applications/listOnly.cpp
 )

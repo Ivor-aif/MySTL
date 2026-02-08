@@ -17,7 +17,7 @@ class List {
 private:
     detail::lstNode<T>* sentinel;
     size_t len = 0;
-    std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<detail::lstNode<T>>> alloc;
+    typename std::allocator_traits<Alloc>::template rebind_alloc<detail::lstNode<T>> alloc;
 
 public:
     List() {
@@ -77,7 +77,7 @@ public:
         detail::lstNode<T>* curr = sentinel->next;
         while (curr != sentinel) {
             detail::lstNode<T>* nxt = curr->next;
-            detail::lstOps<T>::destroy(curr);
+            detail::lstOps<T, Alloc>::destroy(alloc, curr);
             curr = nxt;
         }
         sentinel->last = sentinel;
@@ -86,25 +86,25 @@ public:
     }
 
     detail::lstIterator<T> insert(detail::lstIterator<T> pos, const T& value, const bool front = true) {
-        detail::lstNode<T>* curr = pos.curr, * node = detail::lstOps<T>::create(value);
+        detail::lstNode<T>* curr = pos.curr, * node = detail::lstOps<T, Alloc>::create(alloc, value);
         if (front) {
-            detail::lstOps<T>::link(curr->last, node);
-            detail::lstOps<T>::link(node, curr);
+            detail::lstOps<T, Alloc>::link(curr->last, node);
+            detail::lstOps<T, Alloc>::link(node, curr);
         } else {
-            detail::lstOps<T>::link(node, curr->next);
-            detail::lstOps<T>::link(curr, node);
+            detail::lstOps<T, Alloc>::link(node, curr->next);
+            detail::lstOps<T, Alloc>::link(curr, node);
         }
         len++;
-        return detail::lstIterator<T>{ node };
+        return detail::lstIterator<T>(node);
     }
 
-    detail::lstIterator<T> erase(detail::lstIterator<T> pos) {
+    detail::lstIterator<T> erase(detail::lstIterator<T> pos) noexcept {
         if (pos.curr == sentinel) {
             return end();
         }
         detail::lstNode<T>* node = pos.curr, * nxt = pos.curr->next;
-        detail::lstOps<T>::unlink(node);
-        detail::lstOps<T>::destroy(node);
+        detail::lstOps<T, Alloc>::unlink(node);
+        detail::lstOps<T, Alloc>::destroy(alloc, node);
         len--;
         return detail::lstIterator<T>{ nxt };
     }
@@ -148,19 +148,19 @@ public:
     }
 
     detail::lstIterator<T> begin() {
-        return detail::lstIterator<T>{ sentinel->next };
+        return detail::lstIterator<T>(sentinel->next);
     }
 
     detail::lstIterator<T> end() {
-        return detail::lstIterator<T>{ sentinel };
+        return detail::lstIterator<T>(sentinel);
     }
 
     detail::lstConstIterator<T> begin() const {
-        return detail::lstConstIterator<T>{ sentinel->next };
+        return detail::lstConstIterator<T>(sentinel->next);
     }
 
     detail::lstConstIterator<T> end() const {
-        return detail::lstConstIterator<T>{ sentinel };
+        return detail::lstConstIterator<T>(sentinel);
     }
 
     detail::lstConstIterator<T> beginConst() const {
@@ -181,20 +181,20 @@ public:
         return sentinel->last->value;
     }
 
-    void splice(detail::lstIterator<T> pos, List& other, detail::lstIterator<T> it) {
+    void splice(detail::lstIterator<T> pos, List& other, detail::lstIterator<T> it) noexcept {
         if (this == &other || it.curr == other.sentinel) {
             return;
         }
         auto node = it.curr;
-        detail::lstOps<T>::unlink(node);
+        detail::lstOps<T, Alloc>::unlink(node);
         --other.len;
         auto cur = pos.curr;
-        detail::lstOps<T>::link(cur->last, node);
-        detail::lstOps<T>::link(node, cur);
+        detail::lstOps<T, Alloc>::link(cur->last, node);
+        detail::lstOps<T, Alloc>::link(node, cur);
         ++len;
     }
 
-    void splice(detail::lstIterator<T> pos, List& other) {
+    void splice(detail::lstIterator<T> pos, List& other) noexcept {
         if (other.empty()) {
             return;
         }
@@ -202,23 +202,28 @@ public:
         other.sentinel->next = other.sentinel;
         other.sentinel->last = other.sentinel;
         auto cur = pos.curr;
-        detail::lstOps<T>::link(cur->last, head);
-        detail::lstOps<T>::link(tail, cur);
+        detail::lstOps<T, Alloc>::link(cur->last, head);
+        detail::lstOps<T, Alloc>::link(tail, cur);
         len += other.len;
         other.len = 0;
     }
 
     void merge(List& other) {
+        merge(other, std::less<T>{});
+    }
+
+    template<typename Compare>
+    void merge(List& other, Compare cmp) {
         if (this == &other || other.empty()) {
             return;
         }
-        auto it1 = begin(), it2 = other.begin();
+        detail::lstIterator<T> it1 = begin(), it2 = other.begin();
         while (it1 != end() && it2 != other.end()) {
-            if (*it2 < *it1) {
-                auto nxt = it2;
-                ++nxt;
+            if (cmp(*it2, *it1)) {
+                detail::lstIterator<T> next = it2;
+                ++next;
                 splice(it1, other, it2);
-                it2 = nxt;
+                it2 = next;
             } else {
                 ++it1;
             }
@@ -228,9 +233,13 @@ public:
         }
     }
 
-    void splice(detail::lstIterator<T> pos, List& other, detail::lstIterator<T> head, detail::lstIterator<T> tail) {
+    void splice(detail::lstIterator<T> pos, List& other, detail::lstIterator<T> head, detail::lstIterator<T> tail) noexcept {
         if (head == tail || this == &other && pos == head) {
             return;
+        }
+        size_t nn = 0;
+        for (auto it = head; it != tail; ++it) {
+            nn++;
         }
         detail::lstNode<T>* node1 = head.curr, * node2 = tail.curr->last;
         node1->last->next = node2->next;
@@ -240,20 +249,21 @@ public:
         node2->next = cur;
         cur->last->next = node1;
         cur->last = node2;
-        size_t nn = 0;
-        for (auto it = head; it != tail; ++it) {
-            nn++;
-        }
         len += nn;
         other.len -= nn;
     }
 
     void sort() {
+        sort(std::less<T>{});
+    }
+
+    template<typename Compare>
+    void sort(Compare comp) {
         if (len < 2) {
             return;
         }
         List second;
-        auto slow = begin(), fast = begin();
+        detail::lstIterator<T> slow = begin(), fast = begin();
         while (fast != end()) {
             ++fast;
             if (fast != end()) {
@@ -262,9 +272,9 @@ public:
             }
         }
         second.splice(second.begin(), *this, slow, end());
-        this->sort();
-        second.sort();
-        this->merge(second);
+        this->sort(comp);
+        second.sort(comp);
+        this->merge(second, comp);
     }
 };
 

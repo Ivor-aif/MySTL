@@ -5,11 +5,15 @@
 #ifndef CONTAINERS_H
 #define CONTAINERS_H
 
+#include <memory>
+
 namespace mySTL::containers::detail {
 
 template<typename T, typename Alloc = std::allocator<T>>
 struct conStorage {
 private:
+    using allocTraits = std::allocator_traits<Alloc>;
+
     Alloc alloc;
     size_t size = 0, capacity = 0;
     T* storage = nullptr;
@@ -17,7 +21,7 @@ private:
         if (newCap == capacity) {
             return;
         }
-        T* newStorage = std::allocator_traits<Alloc>::allocate(alloc, newCap);
+        T* newStorage = allocTraits::allocate(alloc, newCap);
         size_t i = 0;
         try {
             for (; i < size; ++i) {
@@ -25,40 +29,40 @@ private:
             }
         } catch (...) {
             destroyRange(newStorage, newStorage + i);
-            std::allocator_traits<Alloc>::deallocate(alloc, newStorage, newCap);
+            allocTraits::deallocate(alloc, newStorage, newCap);
             throw;
         }
         destroyRange(storage, storage + size);
-        std::allocator_traits<Alloc>::deallocate(alloc, storage, capacity);
+        allocTraits::deallocate(alloc, storage, capacity);
         storage = newStorage;
         capacity = newCap;
     }
 
     template<typename... Args>
     void constructAt(T* ptr, Args&&... args) {
-        std::allocator_traits<Alloc>::construct(alloc, ptr, std::forward<Args>(args)...);
+        allocTraits::construct(alloc, ptr, std::forward<Args>(args)...);
     }
 
     void destroyAt(T* ptr) noexcept {
-        std::allocator_traits<Alloc>::destroy(alloc, ptr);
+        allocTraits::destroy(alloc, ptr);
     }
 
     void destroyRange(T* first, T* last) noexcept {
         for (; first != last; ++first) {
-            std::allocator_traits<Alloc>::destroy(alloc, first);
+            allocTraits::destroy(alloc, first);
         }
     }
 
 public:
     conStorage() : capacity(100) {
         size = 0;
-        storage = std::allocator_traits<Alloc>::allocate(alloc, capacity);
+        storage = allocTraits::allocate(alloc, capacity);
     }
 
     conStorage(const conStorage&) = delete;
     conStorage& operator=(const conStorage&) = delete;
 
-    conStorage(conStorage&& other) noexcept(std::allocator_traits<Alloc>::is_always_equal::value)
+    conStorage(conStorage&& other) noexcept(allocTraits::is_always_equal::value)
             : alloc(std::move(other.alloc)), size(other.size), capacity(other.capacity), storage(other.storage) {
         other.size = 0, other.capacity = 0;
         other.storage = nullptr;
@@ -68,7 +72,7 @@ public:
 
     ~conStorage() noexcept {
         destroyRange(storage, storage + size);
-        std::allocator_traits<Alloc>::deallocate(alloc, storage, capacity);
+        allocTraits::deallocate(alloc, storage, capacity);
     }
 
     [[nodiscard]] size_t getSize() const noexcept {
@@ -138,9 +142,6 @@ public:
     lstNode* last, * next;
     T value;
 
-private:
-    template<typename> friend struct lstOps;
-
     template<typename... Args>
     explicit lstNode(Args&&... args) : last(nullptr), next(nullptr), value(std::forward<Args>(args)...) {
 
@@ -149,20 +150,23 @@ private:
 
 template<typename T, typename Alloc = std::allocator<T>>
 struct lstOps {
-    static lstNode<T>* create(typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>& alloc, const T& value) {
-        auto node = std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::allocate(alloc, 1);
+    using nodeAlloc = typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>;
+    using allocTraits = std::allocator_traits<nodeAlloc>;
+
+    static lstNode<T>* create(nodeAlloc& alloc, const T& value) {
+        auto node = allocTraits::allocate(alloc, 1);
         try {
-            std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::construct(alloc, node, value);
+            allocTraits::construct(alloc, node, value);
             return node;
         } catch (...) {
-            std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::deallocate(alloc, node, 1);
+            allocTraits::deallocate(alloc, node, 1);
             throw;
         }
     }
 
-    static void destroy(typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>& alloc, lstNode<T>* obj) {
-        std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::destroy(alloc, obj);
-        std::allocator_traits<typename std::allocator_traits<Alloc>::template rebind_alloc<lstNode<T>>>::deallocate(alloc, obj, 1);
+    static void destroy(nodeAlloc& alloc, lstNode<T>* obj) {
+        allocTraits::destroy(alloc, obj);
+        allocTraits::deallocate(alloc, obj, 1);
     }
 
     static void link(lstNode<T>* first, lstNode<T>* second) {
@@ -180,11 +184,13 @@ struct lstOps {
 
 template<typename T>
 class lstIterator {
-private:
-    lstNode<T>* curr;
-    template<typename> friend class List;
-
 public:
+    lstNode<T>* curr = nullptr;
+
+    explicit lstIterator(lstNode<T>* curr) : curr(curr) {
+
+    } // Only for `List` internal use.
+
     lstIterator() : curr(nullptr) {
 
     }
@@ -230,11 +236,13 @@ public:
 
 template<typename T>
 class lstConstIterator {
-private:
-    const lstNode<T>* curr;
-    template<typename> friend class List;
-
 public:
+    const lstNode<T>* curr = nullptr;
+
+    explicit lstConstIterator(const lstNode<T>* curr) : curr(curr) {
+
+    } // Only for `List` internal use.
+
     lstConstIterator() : curr(nullptr) {
 
     }
@@ -264,7 +272,7 @@ public:
     }
 
     lstConstIterator operator--(int) {
-        lstIterator tmp = *this;
+        lstConstIterator tmp = *this;
         --*this;
         return tmp;
     }
@@ -277,7 +285,7 @@ public:
         return curr != other.curr;
     }
 
-    T* operator->() const {
+    const T* operator->() const {
         return &curr->value;
     }
 };
