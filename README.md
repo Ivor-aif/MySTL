@@ -11,4 +11,5 @@ A modern C++20 infrastructure library
 **2026-02-05 first**: List (also called `std::list` for *C++*) develop finished.\
 **2026-02-08 first**: The use of `List` created, Welcome to submit any other usages. And repaired some known bugs.\
 **2026-02-09 first**: Network created and initial development has completed.\
-**2026-02-10 first**: The use of `Network` created, Welcome to submit any other usages. And repaired some known bugs.
+**2026-02-10 first**: The use of `Network` created, Welcome to submit any other usages. And repaired some known bugs.\
+**2026-02-12 first**: String (also `std::string`) created and add some basic methods.

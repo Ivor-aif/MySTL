@@ -3,6 +3,7 @@
 #include "headers/Array.h"
 #include "headers/List.h"
 #include "headers/Network.h"
+#include "headers/String.h"
 
 using namespace mySTL::containers;
 
