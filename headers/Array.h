@@ -25,6 +25,7 @@ public:
     }
 
     Array(std::initializer_list<T> init) {
+        data.reserve(init.size());
         for (const T& value : init) {
             data.append(value);
         }
@@ -32,8 +33,8 @@ public:
 
     Array(Array&&) noexcept = default;
     Array& operator=(Array&&) noexcept = default;
-    Array(const Array&) = delete;
-    Array& operator=(const Array&) = delete;
+    Array(const Array&) = default;
+    Array& operator=(const Array&) = default;
     ~Array() = default;
 
     [[nodiscard]] size_t getSize() const noexcept {
@@ -139,8 +140,12 @@ public:
     void shrink() noexcept {
         data.shrink();
     }
+
+    void swap(Array& other) noexcept {
+        data.swap(other.data);
+    }
 };
 
 }
 
-#endif //ARRAY_H
+#endif // ARRAY_H

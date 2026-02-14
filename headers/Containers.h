@@ -17,26 +17,6 @@ private:
     Alloc alloc;
     size_t size = 0, capacity = 0;
     T* storage = nullptr;
-    void reserve(size_t newCap) {
-        if (newCap == capacity) {
-            return;
-        }
-        T* newStorage = allocTraits::allocate(alloc, newCap);
-        size_t i = 0;
-        try {
-            for (; i < size; ++i) {
-                constructAt(newStorage + i, std::move_if_noexcept(storage[i]));
-            }
-        } catch (...) {
-            destroyRange(newStorage, newStorage + i);
-            allocTraits::deallocate(alloc, newStorage, newCap);
-            throw;
-        }
-        destroyRange(storage, storage + size);
-        allocTraits::deallocate(alloc, storage, capacity);
-        storage = newStorage;
-        capacity = newCap;
-    }
 
     template<typename... Args>
     void constructAt(T* ptr, Args&&... args) {
@@ -59,8 +39,36 @@ public:
         storage = allocTraits::allocate(alloc, capacity);
     }
 
-    conStorage(const conStorage&) = delete;
-    conStorage& operator=(const conStorage&) = delete;
+    conStorage(const conStorage& other) : size(other.size), capacity(other.capacity) {
+        if (capacity == 0) {
+            storage = nullptr;
+            size = 0;
+            return;
+        }
+        storage = allocTraits::allocate(alloc, capacity);
+        size_t i = 0;
+        try {
+            for ( ; i < size; ++i) {
+                constructAt(storage + i, other.storage[i]);
+            }
+        } catch (...) {
+            destroyRange(storage, storage + i);
+            allocTraits::deallocate(alloc, storage, capacity);
+            storage = nullptr;
+            size = 0;
+            capacity = 0;
+            throw;
+        }
+    }
+
+    conStorage& operator=(const conStorage& other) {
+        if (this == &other) {
+            return *this;
+        }
+        conStorage tmp(other);
+        swap(tmp);
+        return *this;
+    }
 
     conStorage(conStorage&& other) noexcept(allocTraits::is_always_equal::value)
             : alloc(std::move(other.alloc)), size(other.size), capacity(other.capacity), storage(other.storage) {
@@ -68,11 +76,55 @@ public:
         other.storage = nullptr;
     }
 
-    conStorage& operator=(conStorage&& other) = delete;
+    conStorage& operator=(conStorage&& other) noexcept(allocTraits::is_always_equal::value) {
+        if (this == &other) {
+            return *this;
+        }
+        conStorage tmp(std::move(other));
+        swap(tmp);
+        return *this;
+    }
 
     ~conStorage() noexcept {
+        if (!storage) {
+            return;
+        }
         destroyRange(storage, storage + size);
         allocTraits::deallocate(alloc, storage, capacity);
+    }
+
+    void reserve(size_t newCap) {
+        if (newCap < size) {
+            newCap = size;
+        }
+        if (newCap == capacity) {
+            return;
+        }
+        if (newCap == 0) {
+            destroyRange(storage, storage + size);
+            allocTraits::deallocate(alloc, storage, capacity);
+            storage = nullptr;
+            size = 0;
+            capacity = 0;
+            return;
+        }
+        T* newStorage = allocTraits::allocate(alloc, newCap);
+        size_t i = 0;
+        try {
+            for (; i < size; ++i) {
+                constructAt(newStorage + i, std::move_if_noexcept(storage[i]));
+            }
+        } catch (...) {
+            destroyRange(newStorage, newStorage + i);
+            allocTraits::deallocate(alloc, newStorage, newCap);
+            throw;
+        }
+        if (storage) {
+            destroyRange(storage, storage + size);
+            allocTraits::deallocate(alloc, storage, capacity);
+        }
+        storage = newStorage;
+        capacity = newCap;
     }
 
     [[nodiscard]] size_t getSize() const noexcept {
@@ -133,6 +185,21 @@ public:
             return;
         }
         reserve(size);
+    }
+
+    void swap(conStorage& other) noexcept {
+        auto tmp_alloc = std::move(alloc);
+        alloc = std::move(other.alloc);
+        other.alloc = std::move(tmp_alloc);
+        size_t tmpSize = size;
+        size = other.size;
+        other.size = tmpSize;
+        size_t tmpCap = capacity;
+        capacity = other.capacity;
+        other.capacity = tmpCap;
+        T* tmpPtr = storage;
+        storage = other.storage;
+        other.storage = tmpPtr;
     }
 };
 

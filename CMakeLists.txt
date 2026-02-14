@@ -13,4 +13,5 @@ add_executable(MySTL main.cpp
         headers/Network.h
         applications/networkOnly.cpp
         headers/String.h
+        applications/stringOnly.cpp
 )

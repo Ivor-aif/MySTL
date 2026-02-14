@@ -11,67 +11,117 @@ namespace mySTL::containers {
 
 class String {
 private:
-    Array<char> str;
+    Array<char> str = {'\0'};
 
     friend String operator+(const String& str, const String& other);
     friend std::ostream& operator<<(std::ostream& os, const String& str);
+    friend void swap(String& str1, String& str2) noexcept;
+
+    static size_t cStrLen(const char* cStr) {
+        if (!cStr) {
+            throw std::invalid_argument("null pointer");
+        }
+        size_t len = 0;
+        while (cStr[len] != '\0') {
+            ++len;
+        }
+        return len;
+    }
+
+    void ensureEnding() {
+        if (str.empty()) {
+            str.pushBack('\0');
+            return;
+        }
+        if (str.back() != '\0') {
+            str.reserve(length() + 1);
+            str.pushBack('\0');
+        }
+    }
+
+    [[nodiscard]] bool isEnough(const char* ptr) const noexcept {
+        if (!ptr) {
+            return false;
+        }
+        const char* buf = cStr();
+        const char* end = buf + capacity();
+        return ptr >= buf && ptr < end;
+    }
 
 public:
     String() = default;
 
     explicit String(const char* cStr) {
-        while (*cStr != '\0') {
-            str.pushBack(*cStr++);
-        }
+        assign(cStr);
     }
 
     String(const size_t nn, const char* subStr) {
-        for (size_t i = 0; i < nn; i++) {
-            const char* sPtr = subStr;
-            while (*sPtr != '\0') {
-                str.pushBack(*sPtr++);
-            }
+        const size_t subLen = cStrLen(subStr);
+        if (subLen != 0 && nn > static_cast<size_t>(2147483647) / subLen) {
+            throw std::length_error("String too long");
         }
+        const size_t totalLen = nn * subLen;
+        reserve(totalLen);
+        str.clear();
+        for (size_t i = 0; i < totalLen; ++i) {
+            str.pushBack(subStr[i % subLen]);
+        }
+        str.pushBack('\0');
     }
 
     String(const size_t nn, const char ch) {
-        for (size_t i = 0; i < nn; i++) {
+        reserve(nn);
+        str.clear();
+        for (size_t i = 0; i < nn; ++i) {
             str.pushBack(ch);
         }
+        str.pushBack('\0');
     }
 
-    String(const String& other) {
-        for (const char& ch: other) {
-            str.pushBack(ch);
-        }
-    }
-
-    String(String&& other) noexcept : str(std::move(other.str)) {
-
-    }
-
+    String(const String&) = default;
+    String(String&&) noexcept = default;
     String& operator=(const String&) = default;
     String& operator=(String&&) noexcept = default;
-    String& operator=(const char*) = default;
+
+    String& operator=(const char* cStr) {
+        assign(cStr);
+        return *this;
+    }
+
     ~String() = default;
 
+    void assign(const char* cStr) {
+        const size_t len = cStrLen(cStr);
+        reserve(len);
+        str.clear();
+        for (size_t i = 0; i < len; ++i) {
+            str.pushBack(cStr[i]);
+        }
+        str.pushBack('\0');
+    }
+
     [[nodiscard]] size_t length() const noexcept {
-        return str.getSize();
+        return str.getSize() ? str.getSize()-1 : 0;
     }
 
     [[nodiscard]] size_t capacity() const noexcept {
-        return str.capacity();
+        const size_t cap = str.capacity();
+        return cap ? cap-1 : 0;
     }
 
     [[nodiscard]] bool empty() const noexcept {
-        return str.empty();
+        return length() == 0;
     }
 
     void reserve(const size_t len) {
-        str.reserve(len);
+        if (len > static_cast<size_t>(2147483647)) {
+            throw std::length_error("String too long");
+        }
+        str.reserve(len + 1);
     }
 
     void shrink() {
+        ensureEnding();
         str.shrink();
     }
 
@@ -84,35 +134,60 @@ public:
     }
 
     char& charAt(const size_t index) {
-        return str.get(index);
+        if (index >= length()) {
+            throw std::out_of_range("String::charAt");
+        }
+        return (*this)[index];
     }
 
     [[nodiscard]] const char& charAt(const size_t index) const {
-        return str.get(index);
+        if (index >= length()) {
+            throw std::out_of_range("String::charAt");
+        }
+        return (*this)[index];
     }
 
     char& front() {
+        if (empty()) {
+            throw std::out_of_range("String::front");
+        }
         return str.front();
     }
 
     char& back() {
-        return str.back();
+        if (empty()) {
+            throw std::out_of_range("String::back");
+        }
+        return str[length() - 1];
+    }
+
+    [[nodiscard]] const char& front() const {
+        if (empty()) {
+            throw std::out_of_range("String::front");
+        }
+        return str.front();
+    }
+
+    [[nodiscard]] const char& back() const {
+        if (empty()) {
+            throw std::out_of_range("String::back");
+        }
+        return str[length() - 1];
     }
 
     [[nodiscard]] const char* cStr() const noexcept {
-        auto ret = static_cast<char*>(malloc(1 + str.getSize()));
-        for (const char& ch: str) {
-            *ret++ = ch;
-        }
-        *ret = '\0';
-        return ret;
+        return str.begin();
+    }
+
+    [[nodiscard]] const char* dataRaw() const noexcept {
+        return cStr();
+    }
+
+    char* dataRaw() noexcept {
+        return str.getData();
     }
 
     [[nodiscard]] const Array<char>& data() const noexcept {
-        return str;
-    }
-
-    Array<char>& data() noexcept {
         return str;
     }
 
@@ -121,7 +196,7 @@ public:
     }
 
     char* end() noexcept {
-        return str.end();
+        return str.getData() + length();
     }
 
     [[nodiscard]] const char* begin() const noexcept {
@@ -129,25 +204,65 @@ public:
     }
 
     [[nodiscard]] const char* end() const noexcept {
-        return str.end();
+        return str.getData() + length();
+    }
+
+    [[nodiscard]] const char* cBegin() const noexcept {
+        return begin();
+    }
+
+    [[nodiscard]] const char* cEnd() const noexcept {
+        return end();
     }
 
     void append(const String& subStr) {
-        for (const char& ch: subStr) {
-            str.pushBack(ch);
+        if (subStr.empty()) {
+            return;
         }
+        if (this == &subStr) {
+            const String& tmp(subStr);
+            append(tmp);
+            return;
+        }
+        const size_t oldLen = length();
+        reserve(oldLen + subStr.length());
+        str.popBack();
+        for (size_t i = 0; i < subStr.length(); ++i) {
+            str.pushBack(subStr[i]);
+        }
+        str.pushBack('\0');
     }
 
     void append(const char* cStr) {
-        while (*cStr != '\0') {
-            str.pushBack(*cStr++);
+        if (isEnough(cStr)) {
+            const String tmp(cStr);
+            append(tmp);
+            return;
         }
+        const size_t subLen = cStrLen(cStr);
+        if (subLen == 0) {
+            return;
+        }
+        const size_t oldLen = length();
+        reserve(oldLen + subLen);
+        str.popBack();
+        for (size_t i = 0; i < subLen; ++i) {
+            str.pushBack(cStr[i]);
+        }
+        str.pushBack('\0');
     }
 
     void append(const size_t nn, const char ch) {
-        for (size_t i = 0; i < nn; i++) {
+        if (nn == 0) {
+            return;
+        }
+        const size_t oldLen = length();
+        reserve(oldLen + nn);
+        str.popBack();
+        for (size_t i = 0; i < nn; ++i) {
             str.pushBack(ch);
         }
+        str.pushBack('\0');
     }
 
     String& operator+=(const String& subStr) {
@@ -161,71 +276,235 @@ public:
     }
 
     String& operator+=(const char ch) {
-        str.pushBack(ch);
+        append(1, ch);
+        return *this;
+    }
+
+    void insert(const size_t pos, const String& subStr) {
+        if (pos > length()) {
+            throw std::out_of_range("String::insert");
+        }
+        if (subStr.empty()) {
+            return;
+        }
+        if (this == &subStr) {
+            const String& tmp(subStr);
+            insert(pos, tmp);
+            return;
+        }
+        const size_t oldLen = length();
+        const size_t insLen = subStr.length();
+        reserve(oldLen + insLen);
+        str.popBack();
+        for (size_t i = 0; i < insLen; ++i) {
+            str.pushBack('\0');
+        }
+        for (size_t i = oldLen; i > pos; --i) {
+            str[i + insLen - 1] = str[i - 1];
+        }
+        for (size_t i = 0; i < insLen; ++i) {
+            str[pos + i] = subStr[i];
+        }
+        str.pushBack('\0');
+    }
+
+    void insert(const size_t pos, const char* cStr) {
+        if (pos > length()) {
+            throw std::out_of_range("String::insert");
+        }
+        if (isEnough(cStr)) {
+            const String tmp(cStr);
+            insert(pos, tmp);
+            return;
+        }
+        const size_t insLen = cStrLen(cStr);
+        if (insLen == 0) {
+            return;
+        }
+        const size_t oldLen = length();
+        reserve(oldLen + insLen);
+        str.popBack();
+        for (size_t i = 0; i < insLen; ++i) {
+            str.pushBack('\0');
+        }
+        for (size_t i = oldLen; i > pos; --i) {
+            str[i + insLen - 1] = str[i - 1];
+        }
+        for (size_t i = 0; i < insLen; ++i) {
+            str[pos + i] = cStr[i];
+        }
+        str.pushBack('\0');
+    }
+
+    void insert(const size_t pos, const size_t nn, const char ch) {
+        if (pos > length()) {
+            throw std::out_of_range("String::insert");
+        }
+        if (nn == 0) {
+            return;
+        }
+        const size_t oldLen = length();
+        reserve(oldLen + nn);
+        str.popBack();
+        for (size_t i = 0; i < nn; ++i) {
+            str.pushBack('\0');
+        }
+        for (size_t i = oldLen; i > pos; --i) {
+            str[i + nn - 1] = str[i - 1];
+        }
+        for (size_t i = 0; i < nn; ++i) {
+            str[pos + i] = ch;
+        }
+        str.pushBack('\0');
+    }
+
+    void resize(const size_t len) {
+        resize(len, '\0');
+    }
+
+    void resize(const size_t len, const char ch) {
+        const size_t oldLen = length();
+        if (len == oldLen) {
+            return;
+        }
+        if (len < oldLen) {
+            while (length() > len) {
+                popBack();
+            }
+            return;
+        }
+        append(len - oldLen, ch);
+    }
+
+    String& erase(const size_t pos, size_t len = static_cast<size_t>(-1)) {
+        const size_t oldLen = length();
+        if (pos > oldLen) {
+            throw std::out_of_range("String::erase");
+        }
+        if (len == static_cast<size_t>(-1) || pos + len > oldLen) {
+            len = oldLen - pos;
+        }
+        if (len == 0) {
+            return *this;
+        }
+        for (size_t i = pos; i + len < oldLen; ++i) {
+            str[i] = str[i + len];
+        }
+        for (size_t i = 0; i < len; ++i) {
+            popBack();
+        }
         return *this;
     }
 
     void pushBack(const char ch) {
+        reserve(length() + 1);
+        str.popBack();
         str.pushBack(ch);
+        str.pushBack('\0');
     }
 
     void popBack() {
+        if (empty()) {
+            return;
+        }
         str.popBack();
+        str.popBack();
+        str.pushBack('\0');
     }
 
     void clear() noexcept {
         str.clear();
+        str.pushBack('\0');
     }
 
     [[nodiscard]] int compare(const String& other) const {
-        for (size_t i = 0; i < length(); ++i) {
-            if (other.length() < i) {
-                return str[i];
-            }
+        const size_t nn = length() > other.length() ? other.length() : length();
+        for (size_t i = 0; i < nn; ++i) {
             if (str[i] != other[i]) {
                 return str[i] - other[i];
             }
         }
-        if (length() < other.length()) {
-            return -other[length()];
+        if (length() == other.length()) {
+            return 0;
         }
-        return 0;
+        return length() < other.length() ? -1 : 1;
     }
 
-    [[nodiscard]] String substr(const size_t pos, const size_t len) const {
+    [[nodiscard]] String substr(const size_t pos, size_t len = static_cast<size_t>(-1)) const {
+        const size_t oldLen = length();
+        if (pos > oldLen) {
+            throw std::out_of_range("String::substr");
+        }
+        if (len == static_cast<size_t>(-1) || pos + len > oldLen) {
+            len = oldLen - pos;
+        }
         String ret;
+        ret.reserve(len);
+        ret.str.clear();
         for (size_t i = 0; i < len; ++i) {
-            ret.pushBack(str.get(pos + i));
+            ret.str.pushBack(str[pos + i]);
         }
+        ret.str.pushBack('\0');
         return ret;
     }
 
-    String cat(const String &other) {
-        for (const char& ch: other) {
-            str.pushBack(ch);
-        }
-        return *this;
+    [[nodiscard]] String cat(const String& other) const {
+        String ret(*this);
+        ret.append(other);
+        return ret;
     }
 
-    [[nodiscard]] size_t find(char ch, const size_t pos) const {
-        size_t ret = 0;
+    [[nodiscard]] size_t find(const char ch, const size_t pos = 0) const {
         for (size_t i = pos; i < length(); ++i) {
-            ret += str.get[i] == ch;
+            if (str[i] == ch) {
+                return i;
+            }
         }
-        return ret;
+        return static_cast<size_t>(-1);
+    }
+
+    [[nodiscard]] size_t find(const String& subStr, const size_t pos = 0) const {
+        if (subStr.length() == 0) {
+            return pos <= length() ? pos : static_cast<size_t>(-1);
+        }
+        if (subStr.length() > length()) {
+            return static_cast<size_t>(-1);
+        }
+        for (size_t i = pos; i + subStr.length() <= length(); ++i) {
+            size_t j = 0;
+            while (j < subStr.length() && str[i + j] == subStr[j]) {
+                ++j;
+            }
+            if (j == subStr.length()) {
+                return i;
+            }
+        }
+        return static_cast<size_t>(-1);
+    }
+
+    void swap(String& other) noexcept {
+        str.swap(other.str);
     }
 
     void replace(const size_t pos, const String& subStr) {
-        size_t index = pos;
-        const size_t len = subStr.length();
-        for ( ; index < len; ++index) {
-            if (index >= length()) {
-                break;
-            }
-            str[index] = subStr[index - pos];
+        if (pos > length()) {
+            throw std::out_of_range("String::replace");
         }
-        for ( ; index < len; ++index) {
-            str.pushBack(subStr[index - pos]);
+        if (subStr.empty()) {
+            return;
+        }
+        if (this == &subStr) {
+            const String& tmp(subStr);
+            replace(pos, tmp);
+            return;
+        }
+        const size_t oldLen = length();
+        const size_t subLen = subStr.length();
+        if (pos + subLen > oldLen) {
+            resize(pos + subLen, '\0');
+        }
+        for (size_t i = 0; i < subLen; ++i) {
+            str[pos + i] = subStr[i];
         }
     }
 
@@ -254,12 +533,16 @@ public:
     }
 };
 
-inline String operator+(String& str, const String& other) {
+inline String operator+(const String& str, const String& other) {
     return str.cat(other);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const String& str) {
-    return os << str.data();
+    return os << str.cStr();
+}
+
+inline void swap(String& str1, String& str2) noexcept {
+    str1.swap(str2);
 }
 
 }

@@ -5,6 +5,8 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include <cassert>
+
 #include "Array.h"
 
 namespace mySTL::containers {
