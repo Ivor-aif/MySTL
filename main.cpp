@@ -4,12 +4,11 @@
 #include "headers/List.h"
 #include "headers/Network.h"
 #include "headers/String.h"
+#include "headers/Hash.h"
 
 using namespace mySTL::containers;
 
 int main() {
-    const String str("Hello ");
-    const String str2(std::string("World!").data());
-    std::cout << str << str2 << std::endl;
+
     return 0;
 }

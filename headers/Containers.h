@@ -9,6 +9,12 @@
 
 namespace mySTL::containers::detail {
 
+struct piecewise_construct_t {
+    explicit piecewise_construct_t() = default;
+};
+
+constexpr piecewise_construct_t piecewiseConstruct{};
+
 template<typename T, typename Alloc = std::allocator<T>>
 struct conStorage {
 private:
@@ -202,6 +208,112 @@ public:
         other.storage = tmpPtr;
     }
 };
+
+template<typename First, typename Second>
+struct KeyValue {
+    First first;
+    Second second;
+
+    KeyValue() = default;
+
+    KeyValue(const First& first, const Second& second) : first(first), second(second) {
+
+    }
+
+    KeyValue(First&& first, Second&& second) noexcept (std::is_nothrow_move_constructible_v<First> && std::is_nothrow_move_constructible_v<Second>)
+            : first(std::move(first)), second(std::move(second)) {
+
+    }
+
+    template<typename Fir, typename Sec, typename = std::enable_if_t<std::is_constructible_v<First, Fir&&> && std::is_constructible_v<Second, Sec&&>>>
+    KeyValue(Fir&& first, Sec&& second) : first(std::forward<Fir>(first)), second(std::forward<Sec>(second)) {
+
+    }
+
+    template<typename Fir, typename Sec, std::enable_if_t< std::is_constructible_v<First, Fir&&> && std::is_constructible_v<Second, Sec&&> && std::is_convertible_v<Fir&&, First> && std::is_convertible_v<Sec&&, Second>>* = nullptr>
+    KeyValue(Fir&& first, Sec&& second) : first(std::forward<Fir>(first)), second(std::forward<Sec>(second)) {
+
+    }
+
+    template<typename Fir, typename Sec, std::enable_if_t<std::is_constructible_v<First, Fir&&> && std::is_constructible_v<Second, Sec&&> && (!std::is_convertible_v<Fir&&, First> || !std::is_convertible_v<Sec&&, Second>)>* = nullptr>
+    explicit KeyValue(Fir&& first, Sec&& second) : first(std::forward<Fir>(first)), second(std::forward<Sec>(second)) {
+    
+    }
+
+    template<typename... FirArgs, typename... SecArgs>
+    KeyValue(piecewise_construct_t, std::tuple<FirArgs...> firstArgs, std::tuple<SecArgs...> secondArgs) : KeyValue(piecewise_construct_t{},
+             firstArgs, secondArgs, std::index_sequence_for<FirArgs...>{}, std::index_sequence_for<SecArgs...>{}) {
+
+    }
+
+    KeyValue(const KeyValue&) = default;
+
+    KeyValue(KeyValue&& other) noexcept (std::is_nothrow_move_constructible_v<First> && std::is_nothrow_move_constructible_v<Second>)
+            : first(std::move(other.first)), second(std::move(other.second)) {
+                
+    }
+
+    KeyValue& operator=(const KeyValue&) = default;
+
+    KeyValue& operator=(KeyValue&& other) noexcept (std::is_nothrow_move_assignable_v<First> && std::is_nothrow_move_assignable_v<Second>) {
+        if (this != &other) {
+            first = std::move(other.first);
+            second = std::move(other.second);
+        }
+        return *this;
+    }
+
+    void swap(KeyValue& other) noexcept (std::is_nothrow_move_constructible_v<First> && std::is_nothrow_move_assignable_v<First> && std::is_nothrow_move_constructible_v<Second> && std::is_nothrow_move_assignable_v<Second>) {
+        First tmpFirst(std::move(first));
+        first = std::move(other.first);
+        other.first = std::move(tmpFirst);
+        Second tmpSecond(std::move(second));
+        second = std::move(other.second);
+        other.second = std::move(tmpSecond);
+    }
+
+private:
+    template<typename... FirArgs, typename... SecArgs, size_t... Idx1, size_t... Idx2>
+    KeyValue(piecewise_construct_t, std::tuple<FirArgs ...>& firstArgs, std::tuple<SecArgs ...>& secondArgs, std::index_sequence<Idx1 ...>, std::index_sequence<Idx2 ...>)
+            : first(std::forward<FirArgs>(std::get<Idx1>(firstArgs))...), second(std::forward<SecArgs>(std::get<Idx2>(secondArgs))...) {
+
+    }
+};
+
+template<typename First, typename Second>
+void swap(KeyValue<First, Second>& left, KeyValue<First, Second>& right) noexcept (std::is_nothrow_move_assignable_v<First> && std::is_nothrow_move_assignable_v<Second>) {
+    left.swap(right);
+}
+
+template<typename First, typename Second>
+bool operator==(const KeyValue<First, Second>& left, const KeyValue<First, Second>& right) {
+    return left.first == right.first && left.second == right.second;
+}
+
+template<typename First, typename Second>
+bool operator!=(const KeyValue<First, Second>& left, const KeyValue<First, Second>& right) {
+    return !(left == right);
+}
+
+template<typename First, typename Second>
+bool operator<(const KeyValue<First, Second>& left, const KeyValue<First, Second>& right) {
+    return left.first < right.first || (!(right.first < left.first) && left.second < right.second);
+}
+
+template<typename First, typename Second>
+bool operator>(const KeyValue<First, Second>& left, const KeyValue<First, Second>& right) {
+    return right < left;
+}
+
+template<typename First, typename Second>
+bool operator<=(const KeyValue<First, Second>& left, const KeyValue<First, Second>& right) {
+    return !(right < left);
+}
+
+template<typename First, typename Second>
+bool operator>=(const KeyValue<First, Second>& left, const KeyValue<First, Second>& right) {
+    return !(left < right);
+}
 
 template<typename T>
 struct lstNode {
