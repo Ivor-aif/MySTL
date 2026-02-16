@@ -225,11 +225,6 @@ struct KeyValue {
 
     }
 
-    template<typename Fir, typename Sec, typename = std::enable_if_t<std::is_constructible_v<First, Fir&&> && std::is_constructible_v<Second, Sec&&>>>
-    KeyValue(Fir&& first, Sec&& second) : first(std::forward<Fir>(first)), second(std::forward<Sec>(second)) {
-
-    }
-
     template<typename Fir, typename Sec, std::enable_if_t< std::is_constructible_v<First, Fir&&> && std::is_constructible_v<Second, Sec&&> && std::is_convertible_v<Fir&&, First> && std::is_convertible_v<Sec&&, Second>>* = nullptr>
     KeyValue(Fir&& first, Sec&& second) : first(std::forward<Fir>(first)), second(std::forward<Sec>(second)) {
 
