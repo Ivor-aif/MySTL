@@ -5,16 +5,13 @@
 #include "headers/Network.h"
 #include "headers/String.h"
 #include "headers/Hash.h"
+#include "headers/Stack.h"
+#include "headers/Queue.h"
 
 using namespace mySTL::containers;
+using namespace mySTL::structures;
 
 int main() {
-    Hash<int, bool> hash;
-    hash[123] = true;
-    hash[456] = true;
-    hash[789] = true;
-    if (hash.find(123) != hash.end()) {
-        std::cout << hash[123] << std::endl;
-    }
+
     return 0;
 }

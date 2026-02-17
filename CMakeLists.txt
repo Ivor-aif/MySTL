@@ -16,4 +16,5 @@ add_executable(MySTL main.cpp
         applications/stringOnly.cpp
         headers/Hash.h
         applications/hashOnly.cpp
+        headers/Stack.h
 )
