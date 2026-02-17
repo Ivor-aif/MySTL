@@ -17,4 +17,7 @@ add_executable(MySTL main.cpp
         headers/Hash.h
         applications/hashOnly.cpp
         headers/Stack.h
+        applications/StackOnly.cpp
+        headers/Queue.h
+        applications/QueueOnly.cpp
 )

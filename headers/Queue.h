@@ -28,7 +28,7 @@ public:
         return data.getSize() == 0;
     }
 
-    [[nodiscard]] size_t size() const noexcept {
+    [[nodiscard]] size_t getSize() const noexcept {
         return data.getSize();
     }
 
