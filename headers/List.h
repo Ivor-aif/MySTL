@@ -6,7 +6,6 @@
 #define LIST_H
 
 #include <cassert>
-#include <iterator>
 
 #include "Containers.h"
 

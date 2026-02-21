@@ -20,4 +20,6 @@ add_executable(MySTL main.cpp
         applications/StackOnly.cpp
         headers/Queue.h
         applications/QueueOnly.cpp
+        headers/Dequeue.h
+        applications/dequeueOnly.cpp
 )
