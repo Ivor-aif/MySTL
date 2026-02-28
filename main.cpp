@@ -10,46 +10,36 @@
 #include "headers/Dequeue.h"
 #include "headers/BiTree.h"
 #include "headers/Trie.h"
+#include "headers/Heap.h"
 
 using namespace mySTL::containers;
 using namespace mySTL::structures;
 
 int main() {
-    std::cout << "Testing Trie..." << std::endl;
-    Trie<char> trie;
-    trie.insert("apple", 5);
-    trie.insert("app", 3);
-    trie.insert("apricot", 7);
-    assert(trie.contains("apple", 5));
-    assert(trie.contains("app", 3));
-    assert(trie.contains("apricot", 7));
-    assert(!trie.contains("ap", 2));
-    assert(trie.startsWith("ap", 2));
-    assert(trie.startsWith("app", 3));
-    assert(!trie.startsWith("ban", 3));
-    std::cout << "Traversal:" << std::endl;
-    for (const auto& word : trie) {
-        for (size_t i = 0; i < word.getSize(); ++i) {
-            std::cout << word[i];
-        }
-        std::cout << " ";
-    }
-    std::cout << std::endl;
-    std::cout << "Const Iterator Test:" << std::endl;
-    const Trie<char>& constTrie = trie;
-    for (Trie<char>::ConstIterator it = constTrie.begin(); it != constTrie.end(); ++it) {
-        for (size_t i = 0; i < it->getSize(); ++i) {
-            std::cout << (*it)[i];
-        }
-        std::cout << " ";
-    }
-    std::cout << std::endl;
-    const Trie<char>::Iterator it = trie.begin();
-    const Trie<char>::ConstIterator cit = it;
-    assert(it == cit);
-    trie.erase("app", 3);
-    assert(!trie.contains("app", 3));
-    assert(trie.contains("apple", 5));
-    std::cout << "Trie tests passed!" << std::endl;
+    std::cout << "Testing Heap..." << std::endl;
+    Heap<int> maxHeap;
+    maxHeap.push(10);
+    maxHeap.push(5);
+    maxHeap.push(20);
+    maxHeap.push(1);
+    assert(maxHeap.top() == 20);
+    maxHeap.pop();
+    assert(maxHeap.top() == 10);
+    maxHeap.pop();
+    assert(maxHeap.top() == 5);
+    assert(maxHeap.getSize() == 2);
+    assert(!maxHeap.empty());
+    maxHeap.pop();
+    assert(maxHeap.top() == 1);
+    maxHeap.pop();
+    assert(maxHeap.empty());
+    Heap<int, std::greater<>> minHeap;
+    minHeap.push(10);
+    minHeap.push(5);
+    minHeap.push(20);
+    assert(minHeap.top() == 5);
+    minHeap.pop();
+    assert(minHeap.top() == 10);
+    std::cout << "Heap tests passed!" << std::endl;
     return 0;
 }
