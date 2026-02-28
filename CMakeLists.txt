@@ -24,4 +24,6 @@ add_executable(MySTL main.cpp
         applications/dequeueOnly.cpp
         headers/BiTree.h
         applications/BiTreeOnly.cpp
+        headers/Trie.h
+        applications/TrieOnly.cpp
 )

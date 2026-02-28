@@ -43,7 +43,7 @@ private:
 
     NodeAlloc nodeAlloc;
     Node* root = nullptr;
-    size_t nSize = 0;
+    size_t nodeCount = 0;
 
     template<typename... Args>
     Node* createNode(Node* parent, Args&&... args) {
@@ -130,22 +130,19 @@ public:
 
     }
 
-    explicit BiTree(const Alloc& alloc) : nodeAlloc(alloc), root(nullptr), nSize(0) {
+    explicit BiTree(const Alloc& alloc) : nodeAlloc(alloc), root(nullptr), nodeCount(0) {
 
     }
 
     BiTree(const BiTree&) = delete;
     BiTree& operator=(const BiTree&) = delete;
 
-    BiTree(BiTree&& other) noexcept 
-        : nodeAlloc(std::move(other.nodeAlloc)), root(other.root), nSize(other.nSize) {
+    BiTree(BiTree&& other) noexcept : nodeAlloc(std::move(other.nodeAlloc)), root(other.root), nodeCount(other.nodeCount) {
         other.root = nullptr;
-        other.nSize = 0;
+        other.nodeCount = 0;
     }
 
-    BiTree& operator=(BiTree&& other) noexcept(
-        NodeAllocTraits::propagate_on_container_move_assignment::value ||
-        NodeAllocTraits::is_always_equal::value) {
+    BiTree& operator=(BiTree&& other) noexcept(NodeAllocTraits::propagate_on_container_move_assignment::value || NodeAllocTraits::is_always_equal::value) {
         if (this == &other) {
             return *this;
         }
@@ -154,9 +151,9 @@ public:
             nodeAlloc = std::move(other.nodeAlloc);
         }
         root = other.root;
-        nSize = other.nSize;
+        nodeCount = other.nodeCount;
         other.root = nullptr;
-        other.nSize = 0;
+        other.nodeCount = 0;
         return *this;
     }
 
@@ -165,17 +162,17 @@ public:
     }
 
     [[nodiscard]] bool empty() const noexcept {
-        return nSize == 0;
+        return nodeCount == 0;
     }
 
     [[nodiscard]] size_t getSize() const noexcept {
-        return nSize;
+        return nodeCount;
     }
 
     void clear() {
         destroySubtree(root);
         root = nullptr;
-        nSize = 0;
+        nodeCount = 0;
     }
 
     Node* getRoot() noexcept {
@@ -215,7 +212,7 @@ public:
         assert(root == nullptr);
         Node* node = createNode(nullptr, std::forward<Args>(args)...);
         root = node;
-        ++nSize;
+        ++nodeCount;
         return node;
     }
 
@@ -225,7 +222,7 @@ public:
         assert(parent->left == nullptr);
         Node* node = createNode(parent, std::forward<Args>(args)...);
         parent->left = node;
-        ++nSize;
+        ++nodeCount;
         return node;
     }
 
@@ -235,7 +232,7 @@ public:
         assert(parent->right == nullptr);
         Node* node = createNode(parent, std::forward<Args>(args)...);
         parent->right = node;
-        ++nSize;
+        ++nodeCount;
         return node;
     }
 
@@ -254,27 +251,27 @@ public:
             root = nullptr;
         }
 
-        size_t removed = eraseSubtreeRecursive(node);
-        nSize -= removed;
+        const size_t removed = eraseSubtreeRecursive(node);
+        nodeCount -= removed;
     }
 
     containers::Array<T> preOrder() const {
         containers::Array<T> result;
-        result.reserve(nSize);
+        result.reserve(nodeCount);
         preOrderTraversal(root, result);
         return result;
     }
 
     containers::Array<T> inOrder() const {
         containers::Array<T> result;
-        result.reserve(nSize);
+        result.reserve(nodeCount);
         inOrderTraversal(root, result);
         return result;
     }
 
     containers::Array<T> postOrder() const {
         containers::Array<T> result;
-        result.reserve(nSize);
+        result.reserve(nodeCount);
         postOrderTraversal(root, result);
         return result;
     }
@@ -284,7 +281,7 @@ public:
         if (!root) {
             return result;
         }
-        result.reserve(nSize);
+        result.reserve(nodeCount);
         LevelQueue queue;
         queue.push(root);
         while (!queue.empty()) {

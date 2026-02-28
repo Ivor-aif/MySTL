@@ -19,4 +19,5 @@ A modern C++20 infrastructure library
 **2026-02-17 first**: Stack and queue created. Due to the continuous storage, queue is only for light use, too large queue will make `pop()` slowly.\
 **2026-02-17 second**: The use of `Stack` and `Queue` created, Welcome to submit any other usages. And repaired some known bugs.\
 **2026-02-21 first**: Dequeue(based on linked list) created and developed finish. Welcome to submit any other usages.\
-**2026-02-24 first**: BiTree(binary tree) created and developed finish. Welcome to submit any other usages.
+**2026-02-24 first**: BiTree(binary tree) created and developed finish. Welcome to submit any other usages.\
+**2026-02-28 first**: Trie(dictionary tree) created and developed finish. Welcome to submit any other usages.
